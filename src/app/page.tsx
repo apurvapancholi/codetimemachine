@@ -65,11 +65,6 @@ interface DateRange {
   end: string;
 }
 
-interface ChartFilters {
-  dateRange: DateRange;
-  authors: string[];
-  complexityThreshold: number;
-}
 
 export default function Home() {
   // Core state
@@ -101,13 +96,6 @@ export default function Home() {
   // Reference for AI query section
   const aiQueryRef = useRef<HTMLDivElement>(null);
   
-  // Chart filtering state
-  const [chartFilters, setChartFilters] = useState<ChartFilters>({
-    dateRange: { start: '', end: '' },
-    authors: [],
-    complexityThreshold: 50
-  });
-  const [showFilters, setShowFilters] = useState(false);
   
 
   const fetchRepositories = async () => {
@@ -127,24 +115,6 @@ export default function Home() {
     fetchRepositories();
   }, []);
 
-  // Update chart filters when analysis data changes
-  useEffect(() => {
-    if (analysisData && analysisData.complexityTrends.length > 0) {
-      // Get the minimum complexity value to show all data by default
-      const minComplexity = Math.min(...analysisData.complexityTrends.map((d: { complexity: number }) => d.complexity));
-      
-      // Get all unique authors in alphabetical order
-      const allAuthors = analysisData.authorContributions
-        .map((a: { author: string }) => a.author)
-        .sort((a, b) => a.localeCompare(b));
-      
-      setChartFilters({
-        dateRange: { start: '', end: '' },
-        authors: allAuthors, // Select all authors by default
-        complexityThreshold: Math.max(0, Math.floor(minComplexity) - 1) // Set slightly below minimum to include all data, ensure integer
-      });
-    }
-  }, [analysisData]);
 
   // Generate AI insights from analysis data
   const generateAIInsights = (data: AnalysisData): AIInsight[] => {
@@ -236,6 +206,11 @@ export default function Home() {
         
         // Auto-select and analyze the repository (whether newly cloned or existing)
         setSelectedRepo(data.folderName);
+        // Clear AI interface when adding new repository
+        setShowNLInterface(false);
+        setNlQuery("");
+        setNlResponse("");
+        setLastQuery("");
         // Small delay to ensure state updates, then start analysis
         setTimeout(() => {
           fetchAnalysis(data.folderName);
@@ -262,18 +237,6 @@ export default function Home() {
         const insights = generateAIInsights(data);
         setAiInsights(insights);
         
-        // Set default date range for filtering
-        if (data.complexityTrends.length > 0) {
-          const dates = data.complexityTrends.map((d: { date: string }) => d.date).sort();
-          setChartFilters(prev => ({
-            ...prev,
-            dateRange: {
-              start: dates[0],
-              end: dates[dates.length - 1]
-            },
-            authors: data.authorContributions.map((a: { author: string }) => a.author)
-          }));
-        }
       } else {
         console.error("Failed to fetch analysis:", data.error);
         setAnalysisData(null);
@@ -293,8 +256,18 @@ export default function Home() {
     if (selectedRepo === repoId) {
       setSelectedRepo(null);
       setAnalysisData(null);
+      // Clear AI interface when deselecting repository
+      setShowNLInterface(false);
+      setNlQuery("");
+      setNlResponse("");
+      setLastQuery("");
     } else {
       setSelectedRepo(repoId);
+      // Clear AI interface when switching repositories
+      setShowNLInterface(false);
+      setNlQuery("");
+      setNlResponse("");
+      setLastQuery("");
       fetchAnalysis(repoId);
     }
   };
@@ -316,6 +289,11 @@ export default function Home() {
         if (selectedRepo === repoId) {
           setSelectedRepo(null);
           setAnalysisData(null);
+          // Clear AI interface when deleting selected repository
+          setShowNLInterface(false);
+          setNlQuery("");
+          setNlResponse("");
+          setLastQuery("");
         }
         // Refresh the repository list
         fetchRepositories();
@@ -419,46 +397,6 @@ export default function Home() {
   };
 
 
-  // Filter data based on current filters
-  const getFilteredData = () => {
-    if (!analysisData) return null;
-
-    const { dateRange, authors, complexityThreshold } = chartFilters;
-    
-    let filteredComplexity = analysisData.complexityTrends;
-    // Sort author contributions alphabetically
-    let filteredContributions = [...analysisData.authorContributions].sort((a, b) => 
-      a.author.localeCompare(b.author)
-    );
-    
-    // Apply date range filter
-    if (dateRange.start && dateRange.end) {
-      filteredComplexity = filteredComplexity.filter(item => {
-        const itemDate = new Date(item.date);
-        return itemDate >= new Date(dateRange.start) && itemDate <= new Date(dateRange.end);
-      });
-    }
-    
-    // Apply complexity threshold filter
-    filteredComplexity = filteredComplexity.filter(item => item.complexity >= complexityThreshold);
-    
-    // Apply author filter - maintain order and show zeros for unselected authors
-    if (authors.length > 0 && authors.length < analysisData.authorContributions.length) {
-      filteredContributions = filteredContributions.map(contrib => 
-        authors.includes(contrib.author) 
-          ? contrib 
-          : { ...contrib, commits: 0, linesChanged: 0 }
-      );
-    }
-    
-    return {
-      ...analysisData,
-      complexityTrends: filteredComplexity,
-      authorContributions: filteredContributions
-    };
-  };
-
-  const filteredData = getFilteredData();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
@@ -922,134 +860,18 @@ export default function Home() {
                       </div>
                     </div>
                     
-                    {/* Chart Filters Toggle */}
-                    <div className="flex items-center space-x-3">
+                    {!showNLInterface && (
                       <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200"
+                        onClick={handleAskAIClick}
+                        className="lg:hidden flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-md"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                         </svg>
-                        <span>Filters</span>
+                        <span>Ask AI</span>
                       </button>
-                      
-                      {!showNLInterface && (
-                        <button
-                          onClick={handleAskAIClick}
-                          className="lg:hidden flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-md"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                          <span>Ask AI</span>
-                        </button>
-                      )}
-                    </div>
+                    )}
                   </div>
-
-                  {/* Chart Filters Panel */}
-                  {showFilters && filteredData && (
-                    <div className="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Chart Filters</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Date Range Filter */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
-                          <div className="space-y-2">
-                            <input
-                              type="date"
-                              value={chartFilters.dateRange.start}
-                              onChange={(e) => setChartFilters(prev => ({
-                                ...prev,
-                                dateRange: { ...prev.dateRange, start: e.target.value }
-                              }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <input
-                              type="date"
-                              value={chartFilters.dateRange.end}
-                              onChange={(e) => setChartFilters(prev => ({
-                                ...prev,
-                                dateRange: { ...prev.dateRange, end: e.target.value }
-                              }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Complexity Threshold */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Complexity Threshold: {chartFilters.complexityThreshold}
-                          </label>
-                          <input
-                            type="range"
-                            min="0"
-                            max={analysisData ? Math.ceil(Math.max(...analysisData.complexityTrends.map((d: { complexity: number }) => d.complexity))) : 100}
-                            value={chartFilters.complexityThreshold}
-                            onChange={(e) => setChartFilters(prev => ({
-                              ...prev,
-                              complexityThreshold: parseInt(e.target.value)
-                            }))}
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                          />
-                          <div className="flex justify-between text-xs text-gray-500 mt-1">
-                            <span>0</span>
-                            <span>{analysisData ? Math.round(Math.ceil(Math.max(...analysisData.complexityTrends.map((d: { complexity: number }) => d.complexity))) / 2) : 50}</span>
-                            <span>{analysisData ? Math.ceil(Math.max(...analysisData.complexityTrends.map((d: { complexity: number }) => d.complexity))) : 100}</span>
-                          </div>
-                        </div>
-
-                        {/* Author Filter */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Authors</label>
-                          <div className="max-h-32 overflow-y-auto space-y-1">
-                            {analysisData?.authorContributions
-                              .slice()
-                              .sort((a, b) => a.author.localeCompare(b.author))
-                              .map(author => (
-                              <label key={author.author} className="flex items-center">
-                                <input
-                                  type="checkbox"
-                                  checked={chartFilters.authors.includes(author.author)}
-                                  onChange={(e) => {
-                                    const newAuthors = e.target.checked
-                                      ? [...chartFilters.authors, author.author]
-                                      : chartFilters.authors.filter(a => a !== author.author);
-                                    setChartFilters(prev => ({ ...prev, authors: newAuthors }));
-                                  }}
-                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className="ml-2 text-sm text-gray-700 truncate">{author.author}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          onClick={() => {
-                            if (analysisData) {
-                              const dates = analysisData.complexityTrends.map((d: { date: string }) => d.date).sort();
-                              setChartFilters({
-                                dateRange: {
-                                  start: dates[0] || '',
-                                  end: dates[dates.length - 1] || ''
-                                },
-                                authors: analysisData.authorContributions.map((a: { author: string }) => a.author),
-                                complexityThreshold: 0
-                              });
-                            }
-                          }}
-                          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                        >
-                          Reset Filters
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
 
@@ -1090,12 +912,12 @@ export default function Home() {
                         <div className="h-72">
                           <Line
                             data={{
-                              labels: ((filteredData || analysisData)?.complexityTrends || []).map((d: { date: string }) => 
+                              labels: (analysisData?.complexityTrends || []).map((d: { date: string }) => 
                                 new Date(d.date).toLocaleDateString()
                               ),
                               datasets: [{
                                 label: 'Complexity Score',
-                                data: ((filteredData || analysisData)?.complexityTrends || []).map((d: { complexity: number }) => d.complexity),
+                                data: (analysisData?.complexityTrends || []).map((d: { complexity: number }) => d.complexity),
                                 borderColor: 'rgb(59, 130, 246)',
                                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                                 borderWidth: 3,
@@ -1218,13 +1040,13 @@ export default function Home() {
                         <div className="h-72">
                           <Bar
                             data={{
-                              labels: ((filteredData || analysisData)?.authorContributions || []).map((a: { author: string }) => 
+                              labels: (analysisData?.authorContributions || []).map((a: { author: string }) => 
                                 a.author.length > 10 ? a.author.substring(0, 10) + '...' : a.author
                               ),
                               datasets: [
                                 {
                                   label: 'Commits',
-                                  data: ((filteredData || analysisData)?.authorContributions || []).map((a: { commits: number }) => a.commits),
+                                  data: (analysisData?.authorContributions || []).map((a: { commits: number }) => a.commits),
                                   backgroundColor: 'rgba(59, 130, 246, 0.8)',
                                   borderColor: 'rgba(59, 130, 246, 1)',
                                   borderWidth: 1,
@@ -1232,7 +1054,7 @@ export default function Home() {
                                 },
                                 {
                                   label: 'Lines Changed',
-                                  data: ((filteredData || analysisData)?.authorContributions || []).map((a: { linesChanged: number }) => a.linesChanged),
+                                  data: (analysisData?.authorContributions || []).map((a: { linesChanged: number }) => a.linesChanged),
                                   backgroundColor: 'rgba(16, 185, 129, 0.8)',
                                   borderColor: 'rgba(16, 185, 129, 1)',
                                   borderWidth: 1,
@@ -1272,12 +1094,12 @@ export default function Home() {
                                   displayColors: true,
                                   callbacks: {
                                     title: function(context) {
-                                      const authorContribs = ((filteredData || analysisData)?.authorContributions || []);
+                                      const authorContribs = (analysisData?.authorContributions || []);
                                       const author = authorContribs[context[0].dataIndex];
                                       return `Author: ${author?.author || 'Unknown'}`;
                                     },
                                     label: function(context) {
-                                      const authorContribs = ((filteredData || analysisData)?.authorContributions || []);
+                                      const authorContribs = (analysisData?.authorContributions || []);
                                       const author = authorContribs[context.dataIndex];
                                       if (!author) return '';
                                       const totalCommits = authorContribs.reduce((sum, a) => sum + a.commits, 0);
@@ -1373,12 +1195,12 @@ export default function Home() {
                         <div className="h-80">
                           <Bar
                             data={{
-                              labels: ((filteredData || analysisData)?.businessFeatures || []).map((f: { feature: string }) => 
+                              labels: (analysisData?.businessFeatures || []).map((f: { feature: string }) => 
                                 f.feature.length > 15 ? f.feature.substring(0, 15) + '...' : f.feature
                               ),
                               datasets: [{
                                 label: 'Number of Commits',
-                                data: ((filteredData || analysisData)?.businessFeatures || []).map((f: { commits: string[] }) => f.commits.length),
+                                data: (analysisData?.businessFeatures || []).map((f: { commits: string[] }) => f.commits.length),
                                 backgroundColor: [
                                   'rgba(59, 130, 246, 0.8)',
                                   'rgba(16, 185, 129, 0.8)', 
@@ -1533,12 +1355,12 @@ export default function Home() {
                 {modalChart === 'complexity' ? (
                   <Line
                     data={{
-                      labels: ((filteredData || analysisData)?.complexityTrends || []).map((d: { date: string }) => 
+                      labels: (analysisData?.complexityTrends || []).map((d: { date: string }) => 
                         new Date(d.date).toLocaleDateString()
                       ),
                       datasets: [{
                         label: 'Complexity Score',
-                        data: ((filteredData || analysisData)?.complexityTrends || []).map((d: { complexity: number }) => d.complexity),
+                        data: (analysisData?.complexityTrends || []).map((d: { complexity: number }) => d.complexity),
                         borderColor: 'rgb(59, 130, 246)',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
                         tension: 0.1,
@@ -1566,16 +1388,16 @@ export default function Home() {
                 ) : modalChart === 'ownership' ? (
                   <Bar
                     data={{
-                      labels: ((filteredData || analysisData)?.authorContributions || []).map((a: { author: string }) => a.author),
+                      labels: (analysisData?.authorContributions || []).map((a: { author: string }) => a.author),
                       datasets: [
                         {
                           label: 'Commits',
-                          data: ((filteredData || analysisData)?.authorContributions || []).map((a: { commits: number }) => a.commits),
+                          data: (analysisData?.authorContributions || []).map((a: { commits: number }) => a.commits),
                           backgroundColor: 'rgba(59, 130, 246, 0.8)',
                         },
                         {
                           label: 'Lines Changed',
-                          data: ((filteredData || analysisData)?.authorContributions || []).map((a: { linesChanged: number }) => a.linesChanged),
+                          data: (analysisData?.authorContributions || []).map((a: { linesChanged: number }) => a.linesChanged),
                           backgroundColor: 'rgba(16, 185, 129, 0.8)',
                         }
                       ]
@@ -1601,10 +1423,10 @@ export default function Home() {
                 ) : (
                   <Bar
                     data={{
-                      labels: ((filteredData || analysisData)?.businessFeatures || []).map((f: { feature: string }) => f.feature),
+                      labels: (analysisData?.businessFeatures || []).map((f: { feature: string }) => f.feature),
                       datasets: [{
                         label: 'Number of Commits',
-                        data: ((filteredData || analysisData)?.businessFeatures || []).map((f: { commits: string[] }) => f.commits.length),
+                        data: (analysisData?.businessFeatures || []).map((f: { commits: string[] }) => f.commits.length),
                         backgroundColor: [
                           'rgba(59, 130, 246, 0.8)',
                           'rgba(16, 185, 129, 0.8)', 
