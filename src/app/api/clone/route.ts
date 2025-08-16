@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
           alreadyExists: true,
         });
       }
-    } catch (error) {
+    } catch {
       // Continue with cloning if checking fails
     }
 

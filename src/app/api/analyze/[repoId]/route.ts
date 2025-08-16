@@ -89,7 +89,13 @@ function extractBusinessFeature(message: string): string {
   return "Core Development";
 }
 
-function calculateComplexity(stats: any): number {
+interface ComplexityStats {
+  files?: number;
+  insertions?: number;
+  deletions?: number;
+}
+
+function calculateComplexity(stats: ComplexityStats): number {
   const files = stats.files || 0;
   const insertions = stats.insertions || 0;
   const deletions = stats.deletions || 0;

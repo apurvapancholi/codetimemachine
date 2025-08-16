@@ -6,7 +6,7 @@ const REPOS_DIR = path.join(process.cwd(), "cloned-repos");
 
 export async function GET() {
   try {
-    let repositories = [];
+    const repositories = [];
     
     try {
       const items = await fs.readdir(REPOS_DIR);
@@ -24,7 +24,7 @@ export async function GET() {
           });
         }
       }
-    } catch (error) {
+    } catch {
       console.log("No repositories directory found yet");
     }
 

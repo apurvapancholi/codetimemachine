@@ -32,8 +32,21 @@ interface Repository {
   clonedAt: string;
 }
 
+interface Commit {
+  hash: string;
+  date: string;
+  author: string;
+  message: string;
+  filesChanged: number;
+  insertions: number;
+  deletions: number;
+  complexity: number;
+  semanticCategory: string;
+  businessImpact: string;
+}
+
 interface AnalysisData {
-  commits: any[];
+  commits: Commit[];
   complexityTrends: { date: string; complexity: number }[];
   authorContributions: { author: string; commits: number; linesChanged: number }[];
   businessFeatures: { feature: string; commits: string[]; timeline: string[] }[];
@@ -43,7 +56,7 @@ interface AIInsight {
   type: 'trend' | 'anomaly' | 'suggestion' | 'risk';
   title: string;
   description: string;
-  data?: any;
+  data?: unknown;
   severity: 'low' | 'medium' | 'high';
 }
 
@@ -96,11 +109,6 @@ export default function Home() {
   });
   const [showFilters, setShowFilters] = useState(false);
   
-  // Legacy chat state (keeping for compatibility)
-  const [chatQuery, setChatQuery] = useState("");
-  const [chatResponse, setChatResponse] = useState("");
-  const [isLoadingChat, setIsLoadingChat] = useState(false);
-  const [showChat, setShowChat] = useState(false);
 
   const fetchRepositories = async () => {
     setIsLoadingRepos(true);
@@ -235,7 +243,7 @@ export default function Home() {
       } else {
         setMessage(`Error: ${data.error}`);
       }
-    } catch (error) {
+    } catch {
       setMessage("Failed to clone repository");
     } finally {
       setIsLoading(false);
@@ -351,7 +359,7 @@ export default function Home() {
       } else {
         setNlResponse(`Error: ${data.error}`);
       }
-    } catch (error) {
+    } catch {
       setNlResponse('Failed to get response from AI');
     } finally {
       setIsLoadingNL(false);
@@ -363,7 +371,8 @@ export default function Home() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (!isLoadingNL && nlQuery.trim()) {
-        handleNLSubmit(e as any);
+        const formEvent = { preventDefault: () => {} } as React.FormEvent;
+        handleNLSubmit(formEvent);
       }
     }
   };
@@ -409,35 +418,6 @@ export default function Home() {
     };
   };
 
-  // Legacy chat handler (keeping for compatibility)
-  const handleChatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatQuery.trim() || !selectedRepo) {
-      return;
-    }
-
-    setIsLoadingChat(true);
-    try {
-      const response = await fetch(`/api/query/${selectedRepo}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: chatQuery }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setChatResponse(data.response);
-      } else {
-        setChatResponse(`Error: ${data.error}`);
-      }
-    } catch (error) {
-      setChatResponse('Failed to get response from AI');
-    } finally {
-      setIsLoadingChat(false);
-    }
-  };
 
   // Filter data based on current filters
   const getFilteredData = () => {
