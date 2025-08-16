@@ -1,36 +1,20 @@
 import { NextResponse } from "next/server";
-import path from "path";
-import fs from "fs/promises";
-
-const REPOS_DIR = path.join(process.cwd(), "cloned-repos");
+import { repositoryStore } from "@/lib/repository-store";
 
 export async function GET() {
   try {
-    const repositories = [];
-    
-    try {
-      const items = await fs.readdir(REPOS_DIR);
-      
-      for (const item of items) {
-        const itemPath = path.join(REPOS_DIR, item);
-        const stats = await fs.stat(itemPath);
-        
-        if (stats.isDirectory()) {
-          repositories.push({
-            id: item,
-            name: item,
-            path: itemPath,
-            clonedAt: stats.ctime.toISOString(),
-          });
-        }
-      }
-    } catch {
-      console.log("No repositories directory found yet");
-    }
+    // Transform to match the expected format for the frontend
+    const transformedRepos = repositoryStore.getAll().map(repo => ({
+      id: `${repo.owner}-${repo.repo}`,
+      name: repo.fullName,
+      path: `${repo.owner}/${repo.repo}`, // Virtual path for GitHub repos
+      clonedAt: repo.addedAt,
+    }));
 
-    repositories.sort((a, b) => new Date(b.clonedAt).getTime() - new Date(a.clonedAt).getTime());
+    // Sort by most recently added
+    transformedRepos.sort((a, b) => new Date(b.clonedAt).getTime() - new Date(a.clonedAt).getTime());
 
-    return NextResponse.json({ repositories });
+    return NextResponse.json({ repositories: transformedRepos });
   } catch (error) {
     console.error("Error listing repositories:", error);
     return NextResponse.json(
@@ -39,3 +23,4 @@ export async function GET() {
     );
   }
 }
+

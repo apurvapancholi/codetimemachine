@@ -205,7 +205,7 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!repoUrl.trim()) {
-      setMessage("Please enter a repository URL");
+      setMessage("Please enter a GitHub repository URL");
       return;
     }
 
@@ -244,7 +244,7 @@ export default function Home() {
         setMessage(`Error: ${data.error}`);
       }
     } catch {
-      setMessage("Failed to clone repository");
+      setMessage("Failed to add repository");
     } finally {
       setIsLoading(false);
     }
@@ -618,7 +618,7 @@ export default function Home() {
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-6">
 
-            {/* Clone Repository Form */}
+            {/* Add GitHub Repository Form */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 mb-8">
               <div className="text-center mb-6">
                 <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -626,14 +626,14 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Clone New Repository</h2>
-                <p className="text-gray-600">Add a Git repository to analyze with AI-powered insights</p>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Add GitHub Repository</h2>
+                <p className="text-gray-600">Add a GitHub repository to analyze with AI-powered insights</p>
               </div>
               
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-700 mb-2">
-                    Repository URL
+                    GitHub Repository URL
                   </label>
                   <div className="relative">
                     <input
@@ -641,7 +641,7 @@ export default function Home() {
                       type="url"
                       value={repoUrl}
                       onChange={(e) => setRepoUrl(e.target.value)}
-                      placeholder="https://github.com/username/repository.git"
+                      placeholder="https://github.com/username/repository"
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       disabled={isLoading}
                     />
@@ -661,14 +661,14 @@ export default function Home() {
                   {isLoading ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Cloning Repository...
+                      Adding Repository...
                     </>
                   ) : (
                     <>
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                       </svg>
-                      Clone Repository
+                      Add Repository
                     </>
                   )}
                 </button>

@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import simpleGit from "simple-git";
-import path from "path";
-import fs from "fs/promises";
-
-const REPOS_DIR = path.join(process.cwd(), "cloned-repos");
+import { Octokit } from "@octokit/rest";
 
 interface CommitAnalysis {
   hash: string;
@@ -103,16 +99,40 @@ function calculateComplexity(stats: ComplexityStats): number {
   return Math.min(100, Math.log(files + 1) * 10 + Math.log(insertions + deletions + 1) * 5);
 }
 
+function parseRepoId(repoId: string): { owner: string; repo: string } | null {
+  const parts = repoId.split('-');
+  if (parts.length >= 2) {
+    const owner = parts[0];
+    const repo = parts.slice(1).join('-');
+    return { owner, repo };
+  }
+  return null;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ repoId: string }> }
 ) {
   try {
     const { repoId } = await params;
-    const repoPath = path.join(REPOS_DIR, repoId);
+    const parsed = parseRepoId(repoId);
+    
+    if (!parsed) {
+      return NextResponse.json(
+        { error: "Invalid repository ID format" },
+        { status: 400 }
+      );
+    }
 
+    const { owner, repo } = parsed;
+
+    const octokit = new Octokit({
+      auth: process.env.GITHUB_TOKEN, // Optional: for higher rate limits
+    });
+
+    // Verify repository exists
     try {
-      await fs.access(repoPath);
+      await octokit.rest.repos.get({ owner, repo });
     } catch {
       return NextResponse.json(
         { error: "Repository not found" },
@@ -120,33 +140,53 @@ export async function GET(
       );
     }
 
-    const git = simpleGit(repoPath);
-    
-    // Get comprehensive git history for time machine analysis
-    const log = await git.log({ maxCount: 500 });
-    
-    const commits: CommitAnalysis[] = [];
+    // Get commit history
+    const { data: commits } = await octokit.rest.repos.listCommits({
+      owner,
+      repo,
+      per_page: 100, // GitHub API limit
+    });
+
+    const commitAnalyses: CommitAnalysis[] = [];
     const authorStats: { [author: string]: { commits: number; lines: number } } = {};
     const businessFeatures: { [feature: string]: { commits: string[]; timeline: string[] } } = {};
-    
-    for (const commit of log.all) {
-      const { category, impact } = categorizeCommit(commit.message);
-      const businessFeature = extractBusinessFeature(commit.message);
+
+    // Process commits with detailed information
+    for (const commit of commits) {
+      const { category, impact } = categorizeCommit(commit.commit.message);
+      const businessFeature = extractBusinessFeature(commit.commit.message);
       
-      // Estimate complexity based on commit message patterns for now
-      // This is faster than calling git diff for each commit
-      const messageLength = commit.message.length;
-      const filesChanged = Math.max(1, Math.floor(messageLength / 50)); // Rough estimate
-      const insertions = Math.max(5, Math.floor(messageLength / 10));
-      const deletions = Math.max(0, Math.floor(messageLength / 20));
-      
+      let filesChanged = 0;
+      let insertions = 0;
+      let deletions = 0;
+
+      // Get detailed commit information for stats
+      try {
+        const { data: commitDetails } = await octokit.rest.repos.getCommit({
+          owner,
+          repo,
+          ref: commit.sha,
+        });
+
+        filesChanged = commitDetails.files?.length || 0;
+        insertions = commitDetails.stats?.additions || 0;
+        deletions = commitDetails.stats?.deletions || 0;
+      } catch {
+        // Fallback to estimated values based on commit message
+        const messageLength = commit.commit.message.length;
+        filesChanged = Math.max(1, Math.floor(messageLength / 50));
+        insertions = Math.max(5, Math.floor(messageLength / 10));
+        deletions = Math.max(0, Math.floor(messageLength / 20));
+      }
+
       const complexity = calculateComplexity({ files: filesChanged, insertions, deletions });
+      const authorName = commit.commit.author?.name || commit.author?.login || "Unknown";
       
       const commitAnalysis: CommitAnalysis = {
-        hash: commit.hash,
-        date: commit.date,
-        author: commit.author_name,
-        message: commit.message,
+        hash: commit.sha,
+        date: commit.commit.author?.date || new Date().toISOString(),
+        author: authorName,
+        message: commit.commit.message,
         filesChanged,
         insertions,
         deletions,
@@ -155,19 +195,19 @@ export async function GET(
         businessImpact: impact,
       };
       
-      commits.push(commitAnalysis);
+      commitAnalyses.push(commitAnalysis);
       
-      if (!authorStats[commit.author_name]) {
-        authorStats[commit.author_name] = { commits: 0, lines: 0 };
+      if (!authorStats[authorName]) {
+        authorStats[authorName] = { commits: 0, lines: 0 };
       }
-      authorStats[commit.author_name].commits++;
-      authorStats[commit.author_name].lines += insertions + deletions;
+      authorStats[authorName].commits++;
+      authorStats[authorName].lines += insertions + deletions;
       
       if (!businessFeatures[businessFeature]) {
         businessFeatures[businessFeature] = { commits: [], timeline: [] };
       }
-      businessFeatures[businessFeature].commits.push(commit.hash);
-      businessFeatures[businessFeature].timeline.push(commit.date);
+      businessFeatures[businessFeature].commits.push(commit.sha);
+      businessFeatures[businessFeature].timeline.push(commit.commit.author?.date || new Date().toISOString());
     }
     
     const authorContributions = Object.entries(authorStats).map(([author, stats]) => ({
@@ -176,7 +216,7 @@ export async function GET(
       linesChanged: stats.lines,
     }));
     
-    const complexityTrends = commits
+    const complexityTrends = commitAnalyses
       .reverse()
       .map(commit => ({
         date: commit.date,
@@ -190,10 +230,12 @@ export async function GET(
       timeline: data.timeline,
     }));
     
+    // Note: File ownership analysis would require additional API calls
+    // For now, we'll return an empty array
     const fileOwnership: FileOwnership[] = [];
     
     const result: AnalysisResult = {
-      commits: commits.reverse(),
+      commits: commitAnalyses.reverse(),
       fileOwnership,
       complexityTrends,
       authorContributions,
