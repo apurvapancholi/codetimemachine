@@ -5,6 +5,7 @@ import {
   fetchCompleteCommitHistory, 
   analyzeRepositoryData
 } from "@/lib/github-analysis";
+import { repositoryStore } from "@/lib/repository-store";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -52,27 +53,63 @@ export async function POST(
 
     const { owner, repo } = parsed;
 
+    // First check if repository exists in our store
+    const storedRepo = repositoryStore.findById(repoId);
+    if (!storedRepo) {
+      console.error(`Repository ${repoId} not found in store. Available repositories:`, repositoryStore.getAll().map(r => r.fullName));
+      return NextResponse.json(
+        { error: "Repository not found in application. Please add the repository first." },
+        { status: 404 }
+      );
+    }
+
     const octokit = new Octokit({
       auth: process.env.GITHUB_TOKEN, // Optional: for higher rate limits
     });
 
-    // Verify repository exists
+    // Verify repository exists and is accessible via GitHub API
     let repoData;
     try {
       const { data } = await octokit.rest.repos.get({ owner, repo });
       repoData = data;
-    } catch {
+    } catch (error) {
+      console.error(`GitHub API error for ${owner}/${repo}:`, error);
       return NextResponse.json(
-        { error: "Repository not found" },
+        { error: `Repository ${owner}/${repo} not accessible via GitHub API. Please check repository permissions.` },
         { status: 404 }
       );
     }
 
     // Fetch complete commit history using shared function
-    const commits = await fetchCompleteCommitHistory(octokit, owner, repo);
+    let commits;
+    try {
+      commits = await fetchCompleteCommitHistory(octokit, owner, repo);
+      if (commits.length === 0) {
+        console.warn(`No commits found for ${owner}/${repo}`);
+        return NextResponse.json(
+          { error: "No commits found in repository" },
+          { status: 404 }
+        );
+      }
+    } catch (error) {
+      console.error(`Error fetching commits for ${owner}/${repo}:`, error);
+      return NextResponse.json(
+        { error: "Failed to fetch repository commits" },
+        { status: 500 }
+      );
+    }
 
     // Analyze repository data using the same shared function as charts
-    const analysisData = await analyzeRepositoryData(octokit, owner, repo, commits);
+    let analysisData;
+    try {
+      analysisData = await analyzeRepositoryData(octokit, owner, repo, commits);
+    } catch (error) {
+      console.error(`Error analyzing repository data for ${owner}/${repo}:`, error);
+      return NextResponse.json(
+        { error: "Failed to analyze repository data" },
+        { status: 500 }
+      );
+    }
 
     // Get repository contents for file analysis
     let allFiles: string[] = [];
