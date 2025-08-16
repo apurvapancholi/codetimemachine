@@ -1,5 +1,20 @@
 import { Octokit } from "@octokit/rest";
 
+interface GitHubCommit {
+  sha: string;
+  commit: {
+    message: string;
+    author?: { 
+      name?: string; 
+      email?: string;
+      date?: string; 
+    } | null;
+  };
+  author?: { 
+    login?: string; 
+  } | null;
+}
+
 export interface CommitAnalysis {
   hash: string;
   date: string;
@@ -94,22 +109,8 @@ export async function fetchCompleteCommitHistory(
   octokit: Octokit,
   owner: string,
   repo: string
-): Promise<Array<{
-  sha: string;
-  commit: {
-    message: string;
-    author?: { name?: string; date?: string };
-  };
-  author?: { login?: string };
-}>> {
-  let allCommits: Array<{
-    sha: string;
-    commit: {
-      message: string;
-      author?: { name?: string; date?: string };
-    };
-    author?: { login?: string };
-  }> = [];
+): Promise<GitHubCommit[]> {
+  let allCommits: GitHubCommit[] = [];
   let page = 1;
   const perPage = 100;
   let hasMore = true;
@@ -151,14 +152,7 @@ export async function analyzeRepositoryData(
   octokit: Octokit,
   owner: string,
   repo: string,
-  commits: Array<{
-    sha: string;
-    commit: {
-      message: string;
-      author?: { name?: string; date?: string };
-    };
-    author?: { login?: string };
-  }>
+  commits: GitHubCommit[]
 ): Promise<AnalysisResult> {
   const commitAnalyses: CommitAnalysis[] = [];
   const authorStats: { [author: string]: { commits: number; lines: number } } = {};

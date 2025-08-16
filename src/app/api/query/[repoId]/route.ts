@@ -3,8 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Octokit } from "@octokit/rest";
 import { 
   fetchCompleteCommitHistory, 
-  analyzeRepositoryData,
-  type CommitAnalysis
+  analyzeRepositoryData
 } from "@/lib/github-analysis";
 
 const anthropic = new Anthropic({

@@ -60,10 +60,6 @@ interface AIInsight {
   severity: 'low' | 'medium' | 'high';
 }
 
-interface DateRange {
-  start: string;
-  end: string;
-}
 
 
 export default function Home() {

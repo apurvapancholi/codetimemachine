@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Octokit } from "@octokit/rest";
 import { 
   fetchCompleteCommitHistory, 
-  analyzeRepositoryData,
-  type AnalysisResult,
-  type CommitAnalysis
+  analyzeRepositoryData
 } from "@/lib/github-analysis";
 
 interface FileOwnership {
