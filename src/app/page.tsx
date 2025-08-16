@@ -131,11 +131,11 @@ export default function Home() {
   useEffect(() => {
     if (analysisData && analysisData.complexityTrends.length > 0) {
       // Get the minimum complexity value to show all data by default
-      const minComplexity = Math.min(...analysisData.complexityTrends.map(d => d.complexity));
+      const minComplexity = Math.min(...analysisData.complexityTrends.map((d: { complexity: number }) => d.complexity));
       
       // Get all unique authors in alphabetical order
       const allAuthors = analysisData.authorContributions
-        .map(a => a.author)
+        .map((a: { author: string }) => a.author)
         .sort((a, b) => a.localeCompare(b));
       
       setChartFilters({
@@ -264,14 +264,14 @@ export default function Home() {
         
         // Set default date range for filtering
         if (data.complexityTrends.length > 0) {
-          const dates = data.complexityTrends.map(d => d.date).sort();
+          const dates = data.complexityTrends.map((d: { date: string }) => d.date).sort();
           setChartFilters(prev => ({
             ...prev,
             dateRange: {
               start: dates[0],
               end: dates[dates.length - 1]
             },
-            authors: data.authorContributions.map(a => a.author)
+            authors: data.authorContributions.map((a: { author: string }) => a.author)
           }));
         }
       } else {
@@ -986,7 +986,7 @@ export default function Home() {
                           <input
                             type="range"
                             min="0"
-                            max={analysisData ? Math.ceil(Math.max(...analysisData.complexityTrends.map(d => d.complexity))) : 100}
+                            max={analysisData ? Math.ceil(Math.max(...analysisData.complexityTrends.map((d: { complexity: number }) => d.complexity))) : 100}
                             value={chartFilters.complexityThreshold}
                             onChange={(e) => setChartFilters(prev => ({
                               ...prev,
@@ -996,8 +996,8 @@ export default function Home() {
                           />
                           <div className="flex justify-between text-xs text-gray-500 mt-1">
                             <span>0</span>
-                            <span>{analysisData ? Math.round(Math.ceil(Math.max(...analysisData.complexityTrends.map(d => d.complexity))) / 2) : 50}</span>
-                            <span>{analysisData ? Math.ceil(Math.max(...analysisData.complexityTrends.map(d => d.complexity))) : 100}</span>
+                            <span>{analysisData ? Math.round(Math.ceil(Math.max(...analysisData.complexityTrends.map((d: { complexity: number }) => d.complexity))) / 2) : 50}</span>
+                            <span>{analysisData ? Math.ceil(Math.max(...analysisData.complexityTrends.map((d: { complexity: number }) => d.complexity))) : 100}</span>
                           </div>
                         </div>
 
@@ -1032,13 +1032,13 @@ export default function Home() {
                         <button
                           onClick={() => {
                             if (analysisData) {
-                              const dates = analysisData.complexityTrends.map(d => d.date).sort();
+                              const dates = analysisData.complexityTrends.map((d: { date: string }) => d.date).sort();
                               setChartFilters({
                                 dateRange: {
                                   start: dates[0] || '',
                                   end: dates[dates.length - 1] || ''
                                 },
-                                authors: analysisData.authorContributions.map(a => a.author),
+                                authors: analysisData.authorContributions.map((a: { author: string }) => a.author),
                                 complexityThreshold: 0
                               });
                             }
@@ -1090,12 +1090,12 @@ export default function Home() {
                         <div className="h-72">
                           <Line
                             data={{
-                              labels: ((filteredData || analysisData)?.complexityTrends || []).map(d => 
+                              labels: ((filteredData || analysisData)?.complexityTrends || []).map((d: { date: string }) => 
                                 new Date(d.date).toLocaleDateString()
                               ),
                               datasets: [{
                                 label: 'Complexity Score',
-                                data: ((filteredData || analysisData)?.complexityTrends || []).map(d => d.complexity),
+                                data: ((filteredData || analysisData)?.complexityTrends || []).map((d: { complexity: number }) => d.complexity),
                                 borderColor: 'rgb(59, 130, 246)',
                                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                                 borderWidth: 3,
@@ -1218,13 +1218,13 @@ export default function Home() {
                         <div className="h-72">
                           <Bar
                             data={{
-                              labels: ((filteredData || analysisData)?.authorContributions || []).map(a => 
+                              labels: ((filteredData || analysisData)?.authorContributions || []).map((a: { author: string }) => 
                                 a.author.length > 10 ? a.author.substring(0, 10) + '...' : a.author
                               ),
                               datasets: [
                                 {
                                   label: 'Commits',
-                                  data: ((filteredData || analysisData)?.authorContributions || []).map(a => a.commits),
+                                  data: ((filteredData || analysisData)?.authorContributions || []).map((a: { commits: number }) => a.commits),
                                   backgroundColor: 'rgba(59, 130, 246, 0.8)',
                                   borderColor: 'rgba(59, 130, 246, 1)',
                                   borderWidth: 1,
@@ -1232,7 +1232,7 @@ export default function Home() {
                                 },
                                 {
                                   label: 'Lines Changed',
-                                  data: ((filteredData || analysisData)?.authorContributions || []).map(a => a.linesChanged),
+                                  data: ((filteredData || analysisData)?.authorContributions || []).map((a: { linesChanged: number }) => a.linesChanged),
                                   backgroundColor: 'rgba(16, 185, 129, 0.8)',
                                   borderColor: 'rgba(16, 185, 129, 1)',
                                   borderWidth: 1,
@@ -1373,12 +1373,12 @@ export default function Home() {
                         <div className="h-80">
                           <Bar
                             data={{
-                              labels: ((filteredData || analysisData)?.businessFeatures || []).map(f => 
+                              labels: ((filteredData || analysisData)?.businessFeatures || []).map((f: { feature: string }) => 
                                 f.feature.length > 15 ? f.feature.substring(0, 15) + '...' : f.feature
                               ),
                               datasets: [{
                                 label: 'Number of Commits',
-                                data: ((filteredData || analysisData)?.businessFeatures || []).map(f => f.commits.length),
+                                data: ((filteredData || analysisData)?.businessFeatures || []).map((f: { commits: string[] }) => f.commits.length),
                                 backgroundColor: [
                                   'rgba(59, 130, 246, 0.8)',
                                   'rgba(16, 185, 129, 0.8)', 
@@ -1533,12 +1533,12 @@ export default function Home() {
                 {modalChart === 'complexity' ? (
                   <Line
                     data={{
-                      labels: ((filteredData || analysisData)?.complexityTrends || []).map(d => 
+                      labels: ((filteredData || analysisData)?.complexityTrends || []).map((d: { date: string }) => 
                         new Date(d.date).toLocaleDateString()
                       ),
                       datasets: [{
                         label: 'Complexity Score',
-                        data: ((filteredData || analysisData)?.complexityTrends || []).map(d => d.complexity),
+                        data: ((filteredData || analysisData)?.complexityTrends || []).map((d: { complexity: number }) => d.complexity),
                         borderColor: 'rgb(59, 130, 246)',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
                         tension: 0.1,
@@ -1566,16 +1566,16 @@ export default function Home() {
                 ) : modalChart === 'ownership' ? (
                   <Bar
                     data={{
-                      labels: ((filteredData || analysisData)?.authorContributions || []).map(a => a.author),
+                      labels: ((filteredData || analysisData)?.authorContributions || []).map((a: { author: string }) => a.author),
                       datasets: [
                         {
                           label: 'Commits',
-                          data: ((filteredData || analysisData)?.authorContributions || []).map(a => a.commits),
+                          data: ((filteredData || analysisData)?.authorContributions || []).map((a: { commits: number }) => a.commits),
                           backgroundColor: 'rgba(59, 130, 246, 0.8)',
                         },
                         {
                           label: 'Lines Changed',
-                          data: ((filteredData || analysisData)?.authorContributions || []).map(a => a.linesChanged),
+                          data: ((filteredData || analysisData)?.authorContributions || []).map((a: { linesChanged: number }) => a.linesChanged),
                           backgroundColor: 'rgba(16, 185, 129, 0.8)',
                         }
                       ]
@@ -1601,10 +1601,10 @@ export default function Home() {
                 ) : (
                   <Bar
                     data={{
-                      labels: ((filteredData || analysisData)?.businessFeatures || []).map(f => f.feature),
+                      labels: ((filteredData || analysisData)?.businessFeatures || []).map((f: { feature: string }) => f.feature),
                       datasets: [{
                         label: 'Number of Commits',
-                        data: ((filteredData || analysisData)?.businessFeatures || []).map(f => f.commits.length),
+                        data: ((filteredData || analysisData)?.businessFeatures || []).map((f: { commits: string[] }) => f.commits.length),
                         backgroundColor: [
                           'rgba(59, 130, 246, 0.8)',
                           'rgba(16, 185, 129, 0.8)', 
