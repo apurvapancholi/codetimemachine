@@ -1,3 +1,10 @@
+Navigates any codebase (git repo) through time, understanding evolution of features and architectural decisions. 
+• Clone repo and analyze full git history 
+• Build semantic understanding of code changes over time 
+• Answer questions like "Why was this pattern introduced?" or "Show me how auth evolved" 
+• Visualize code ownership and complexity trends 
+• Link commits to business features/decisions
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
